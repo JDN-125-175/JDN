@@ -44,3 +44,24 @@ def process_tables(database):
         table_info.append(f"{table}({col})")
     
     return " ; ".join(table_info)
+
+
+def process_query(data, database):
+    inputs = []
+    results = []
+
+    for example in data:
+        question = example["question"]
+        query = example["query"]
+        id = example["db_id"]
+
+        table = process_tables(database[id])
+        string = (
+            "translate to SQL: "
+            f"question: {question}"
+            f"table: {table}"
+        )
+
+        inputs.append(string)
+        results.append(query)
+    return inputs, results
