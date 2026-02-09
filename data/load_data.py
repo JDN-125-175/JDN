@@ -24,3 +24,23 @@ class Spider:
             for database in data:
                 databases[database["db_id"]] = database
         return databases
+    
+
+def process_tables(database):
+    tables = database["table_names_original"]
+    columns = database["column_names_original"]
+
+    cols = {}
+    for i in range(len(tables)):
+        cols[i] = []
+
+    for id, name in columns:
+        if id >= 0:
+            cols[id].append(name)
+
+    table_info = []
+    for i, table in enumerate(tables):
+        col = ", ".join(cols[i])
+        table_info.append(f"{table}({col})")
+    
+    return " ; ".join(table_info)
