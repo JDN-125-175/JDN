@@ -14,9 +14,9 @@ def predict(question, db_id):
     schema = process_tables(tables[db_id])
 
     prompt = (
-        "translate to SQL:\n"
-        f"question: {question}\n"
-        f"table: {schema}\n"
+        "translate to SQL:"
+        f"question: {question}"
+        f"table: {schema}"
     )
 
     enc = tokenizer(prompt, return_tensors="pt", truncation=True).to(device)
