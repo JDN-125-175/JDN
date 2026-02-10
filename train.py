@@ -4,7 +4,7 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration
 from load_data import Spider, process_query
 
 class SpiderDataset(Dataset):
-    def __init__(self, inputs, targets, tokenizer, max_input_len=256, max_target_len=256, batch_size = 2):
+    def __init__(self, inputs, targets, tokenizer, max_input_len=256, max_target_len=256):
         self.inputs = inputs
         self.targets = targets
         self.tokenizer = tokenizer
@@ -49,22 +49,31 @@ def main():
     ds = SpiderDataset(train_inputs, train_targets, tokenizer)
     loader = DataLoader(ds, batch_size=4, shuffle=True)
 
-    optim = torch.optim.AdamW(model.parameters(), lr=3e-4)
+    optim = torch.optim.AdamW(model.parameters(), lr=1e-4)  # I'd lower from 3e-4
+
+    num_epochs = 5
 
     model.train()
-    for step, batch in enumerate(loader):
-        batch = {k: v.to(device) for k, v in batch.items()}
-        loss = model(**batch).loss
+    global_step = 0
+    for epoch in range(num_epochs):
+        total_loss = 0.0
 
-        optim.zero_grad()
-        loss.backward()
-        optim.step()
+        for step, batch in enumerate(loader):
+            batch = {k: v.to(device) for k, v in batch.items()}
+            loss = model(**batch).loss
 
-        if step % 50 == 0:
-            print(f"step {step} loss {loss.item():.4f}")
+            optim.zero_grad()
+            loss.backward()
+            optim.step()
 
-        # if step == 300:  
-        #     break
+            total_loss += loss.item()
+            global_step += 1
+
+            if step % 50 == 0:
+                print(f"epoch {epoch+1}/{num_epochs} step {step} loss {loss.item():.4f}")
+
+        avg_loss = total_loss / len(loader)
+        print(f"epoch {epoch+1} done | avg_loss={avg_loss:.4f}")
 
     model.save_pretrained("t5_spider_ckpt")
     tokenizer.save_pretrained("t5_spider_ckpt")
