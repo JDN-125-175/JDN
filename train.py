@@ -63,8 +63,8 @@ def main():
         if step % 50 == 0:
             print(f"step {step} loss {loss.item():.4f}")
 
-        if step == 300:  
-            break
+        # if step == 300:  
+        #     break
 
     model.save_pretrained("t5_spider_ckpt")
     tokenizer.save_pretrained("t5_spider_ckpt")
