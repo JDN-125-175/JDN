@@ -145,7 +145,7 @@ def run_evaluation(
     split: str = "dev",
     predictions_file: Optional[str] = None,
     model_ckpt: Optional[str] = "t5_spider_ckpt",
-    max_examples: Optional[int] = 0,
+    max_examples: Optional[int] = 100,
     db_subdir: str = "database",
     debug_n: int = 0,
 ) -> float:
@@ -175,7 +175,12 @@ def run_evaluation(
             predictions = [line.strip() for line in f if line.strip()]
     else:
         from infer import predict as model_predict
-        predictions = [model_predict(ex["question"], ex["db_id"]) for ex in examples]
+        predictions = []
+        for i, ex in enumerate(examples):
+            if i % 50 == 0:
+                print(f"Predicting example {i}/{len(examples)}")
+            predictions.append(model_predict(ex["question"], ex["db_id"]))
+
 
     acc, results = evaluate_execution(data_path, examples, predictions, db_subdir)
 
