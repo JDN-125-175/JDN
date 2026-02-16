@@ -8,9 +8,11 @@ tokenizer = T5Tokenizer.from_pretrained("t5_spider_ckpt")
 model = T5ForConditionalGeneration.from_pretrained("t5_spider_ckpt").to(device)
 model.eval()
 
+spider = Spider("data/spider")
+tables = spider.load_tables(spider.tables_path)
+
 def predict(question, db_id):
-    spider = Spider("data/spider")
-    tables = spider.load_tables(spider.tables_path)
+
     schema = process_tables(tables[db_id])
 
     prompt = (
