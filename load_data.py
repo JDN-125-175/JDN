@@ -57,9 +57,10 @@ def process_query(data, database):
 
         table = process_tables(database[id])
         string = (
-            "translate to SQL: "
-            f"question: {question}"
-            f"table: {table}"
+            "Task: Text-to-SQL. "
+            f"Question: {question} "
+            f"Database Schema: {schema} "
+            "SQL Query:"
         )
 
         inputs.append(string)
