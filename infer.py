@@ -30,6 +30,7 @@ def predict(question, db_id):
             **enc,
             max_length=256,
             num_beams=4,
+            early_stopping=True,
         )
 
     return tokenizer.decode(out_ids[0], skip_special_tokens=True)
