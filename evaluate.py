@@ -69,7 +69,7 @@ def normalize_results(rows: Optional[List[Tuple[Any, ...]]]) -> Optional[Tuple[T
     if rows is None:
         return None
     normalized = [tuple(_normalize_cell(c) for c in row) for row in rows]
-    return tuple(sorted(normalized))
+    return tuple(sorted(normalized, key=lambda row: str(row)))
 
 
 def execution_match(
