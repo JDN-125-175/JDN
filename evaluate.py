@@ -145,7 +145,7 @@ def run_evaluation(
     split: str = "dev",
     predictions_file: Optional[str] = None,
     model_ckpt: Optional[str] = "t5_spider_ckpt",
-    max_examples: Optional[int] = 100,
+    max_examples: Optional[int] = 0,
     db_subdir: str = "database",
     debug_n: int = 0,
 ) -> float:
