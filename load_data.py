@@ -30,9 +30,7 @@ def process_tables(database):
     tables = database["table_names_original"]
     columns = database["column_names_original"]
 
-    cols = {}
-    for i in range(len(tables)):
-        cols[i] = []
+    cols = {i: [] for i in range(len(tables))}
 
     for id, name in columns:
         if id >= 0:
@@ -41,9 +39,9 @@ def process_tables(database):
     table_info = []
     for i, table in enumerate(tables):
         col = ", ".join(cols[i])
-        table_info.append(f"{table}({col})")
-    
-    return " ; ".join(table_info)
+        table_info.append(f"Table: {table} Columns: {col}.")
+
+    return " ".join(table_info)
 
 
 def process_query(data, database):
@@ -56,13 +54,16 @@ def process_query(data, database):
         id = example["db_id"]
 
         table = process_tables(database[id])
+
         string = (
             "Task: Text-to-SQL. "
             f"Question: {question} "
-            f"Database Schema: {schema} "
+            f"Database Schema: {table} "
             "SQL Query:"
         )
 
         inputs.append(string)
         results.append(query)
+
     return inputs, results
+
