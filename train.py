@@ -41,7 +41,7 @@ def main():
     tables = spider.load_tables(spider.tables_path)
     train_inputs, train_targets = process_query(spider.train, tables)
 
-    train_inputs, train_targets = train_inputs[:2000], train_targets[:2000]
+    # train_inputs, train_targets = train_inputs[:2000], train_targets[:2000]
 
     tokenizer = T5Tokenizer.from_pretrained("t5-small")
     model = T5ForConditionalGeneration.from_pretrained("t5-small").to(device)
