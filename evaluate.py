@@ -69,7 +69,7 @@ def normalize_results(rows: Optional[List[Tuple[Any, ...]]]) -> Optional[Tuple[T
     if rows is None:
         return None
     normalized = [tuple(_normalize_cell(c) for c in row) for row in rows]
-    return tuple(sorted(normalized))
+    return tuple(sorted(normalized, key=lambda row: str(row)))
 
 
 def execution_match(
@@ -175,7 +175,12 @@ def run_evaluation(
             predictions = [line.strip() for line in f if line.strip()]
     else:
         from infer import predict as model_predict
-        predictions = [model_predict(ex["question"], ex["db_id"]) for ex in examples]
+        predictions = []
+        for i, ex in enumerate(examples):
+            if i % 50 == 0:
+                print(f"Predicting example {i}/{len(examples)}")
+            predictions.append(model_predict(ex["question"], ex["db_id"]))
+
 
     acc, results = evaluate_execution(data_path, examples, predictions, db_subdir)
 

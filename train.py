@@ -41,7 +41,7 @@ def main():
     tables = spider.load_tables(spider.tables_path)
     train_inputs, train_targets = process_query(spider.train, tables)
 
-    train_inputs, train_targets = train_inputs[:2000], train_targets[:2000]
+    # train_inputs, train_targets = train_inputs[:2000], train_targets[:2000]
 
     tokenizer = T5Tokenizer.from_pretrained("t5-small")
     model = T5ForConditionalGeneration.from_pretrained("t5-small").to(device)
@@ -49,9 +49,9 @@ def main():
     ds = SpiderDataset(train_inputs, train_targets, tokenizer)
     loader = DataLoader(ds, batch_size=4, shuffle=True)
 
-    optim = torch.optim.AdamW(model.parameters(), lr=1e-4)  # I'd lower from 3e-4
+    optim = torch.optim.AdamW(model.parameters(), lr=5e-5)  # I'd lower from 3e-4
 
-    num_epochs = 5
+    num_epochs = 7
 
     model.train()
     global_step = 0

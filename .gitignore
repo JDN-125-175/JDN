@@ -2,3 +2,7 @@ spider/
 t5_spider_ckpt/
 __pycache__/
 data.zip
+<<<<<<< HEAD
+=======
+data/
+>>>>>>> c06a52e2669ad3e0e8e55e3ae1d79eedc53103d3
