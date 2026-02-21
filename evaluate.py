@@ -1,3 +1,4 @@
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any, List, Optional, Tuple, Dict
@@ -122,6 +123,47 @@ def execution_match(
     if g is None:
         return False
     return g == p
+
+
+def get_difficulty(sql: str) -> str:
+    """
+    Categorize SQL difficulty based on its components, approximating the
+    official Spider difficulty rating (easy / medium / hard / extra hard).
+    """
+    s = sql.upper()
+
+    num_selects   = s.count('SELECT')
+    has_nested    = num_selects > 1
+    has_set_op    = bool(re.search(r'\b(UNION|INTERSECT|EXCEPT)\b', s))
+    has_groupby   = 'GROUP BY' in s
+    has_having    = 'HAVING' in s
+    has_orderby   = 'ORDER BY' in s
+    has_limit     = 'LIMIT' in s
+    num_joins     = len(re.findall(r'\bJOIN\b', s))
+
+    where_match = re.search(r'\bWHERE\b(.+?)(?:\bGROUP BY\b|\bORDER BY\b|\bHAVING\b|\bLIMIT\b|$)', s, re.DOTALL)
+    num_conditions = 0
+    if where_match:
+        clause = where_match.group(1)
+        num_conditions = len(re.findall(r'\b(AND|OR)\b', clause)) + 1
+
+    num_components = sum([
+        'WHERE' in s,
+        has_groupby,
+        has_orderby,
+        has_limit,
+        has_having,
+        has_set_op,
+    ])
+
+    if has_set_op or num_selects >= 3:
+        return 'extra hard'
+    elif has_nested or has_having or num_components >= 3 or num_conditions >= 4:
+        return 'hard'
+    elif has_groupby or num_joins >= 1 or num_conditions >= 2 or num_components >= 2:
+        return 'medium'
+    else:
+        return 'easy'
 
 
 def evaluate_execution(
@@ -301,6 +343,22 @@ def run_evaluation(
         print(f"\nGold SQL Error Breakdown:")
         for error_type, count in gold_error_types.most_common():
             print(f"  {error_type}: {count} ({count/gold_fail*100:.1f}% of gold errors)")
+
+    # Difficulty breakdown
+    difficulty_order = ['easy', 'medium', 'hard', 'extra hard']
+    difficulty_results = {d: {'correct': 0, 'total': 0} for d in difficulty_order}
+    for r in results:
+        d = get_difficulty(r['gold_sql'])
+        difficulty_results[d]['total'] += 1
+        if r['correct']:
+            difficulty_results[d]['correct'] += 1
+
+    print(f"\nAccuracy by Difficulty:")
+    for d in difficulty_order:
+        dr = difficulty_results[d]
+        if dr['total'] > 0:
+            pct = dr['correct'] / dr['total'] * 100
+            print(f"  {d.capitalize():12s}: {dr['correct']:4d}/{dr['total']:4d} ({pct:.1f}%)")
     
     # Show sample errors
     if pred_errors:
