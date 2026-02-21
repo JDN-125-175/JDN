@@ -318,6 +318,13 @@ def run_evaluation(
     print(f"Execution accuracy: {acc:.4f} ({correct}/{n})")
     print(f"{'='*80}")
     
+    # 3-way breakdown
+    wrong_answer = n - correct - pred_fail
+    print(f"\nOutcome Breakdown:")
+    print(f"  Correct           : {correct:4d}/{n} ({correct/n*100:.1f}%)")
+    print(f"  Wrong answer      : {wrong_answer:4d}/{n} ({wrong_answer/n*100:.1f}%)  (ran but wrong result)")
+    print(f"  Failed to execute : {pred_fail:4d}/{n} ({pred_fail/n*100:.1f}%)  (invalid SQL)")
+
     # Error statistics
     print(f"\nError Statistics:")
     print(f"  Pred SQL execution errors: {pred_fail}/{n} ({pred_fail_pct:.2f}%)")
@@ -346,19 +353,30 @@ def run_evaluation(
 
     # Difficulty breakdown
     difficulty_order = ['easy', 'medium', 'hard', 'extra hard']
-    difficulty_results = {d: {'correct': 0, 'total': 0} for d in difficulty_order}
+    difficulty_results = {d: {'correct': 0, 'wrong': 0, 'failed': 0, 'total': 0} for d in difficulty_order}
     for r in results:
         d = get_difficulty(r['gold_sql'])
         difficulty_results[d]['total'] += 1
         if r['correct']:
             difficulty_results[d]['correct'] += 1
+        elif not r['pred_ok']:
+            difficulty_results[d]['failed'] += 1
+        else:
+            difficulty_results[d]['wrong'] += 1
 
-    print(f"\nAccuracy by Difficulty:")
+    print(f"\nBreakdown by Difficulty:")
+    print(f"  {'':12s}  {'Correct':>10}  {'Wrong Ans':>10}  {'Failed SQL':>10}  {'Total':>6}")
     for d in difficulty_order:
         dr = difficulty_results[d]
         if dr['total'] > 0:
-            pct = dr['correct'] / dr['total'] * 100
-            print(f"  {d.capitalize():12s}: {dr['correct']:4d}/{dr['total']:4d} ({pct:.1f}%)")
+            acc_pct   = dr['correct'] / dr['total'] * 100
+            wrong_pct = dr['wrong']   / dr['total'] * 100
+            fail_pct  = dr['failed']  / dr['total'] * 100
+            print(f"  {d.capitalize():12s}  "
+                  f"{dr['correct']:4d} ({acc_pct:4.1f}%)  "
+                  f"{dr['wrong']:4d} ({wrong_pct:4.1f}%)  "
+                  f"{dr['failed']:4d} ({fail_pct:4.1f}%)  "
+                  f"{dr['total']:6d}")
     
     # Show sample errors
     if pred_errors:
