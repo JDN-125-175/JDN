@@ -1,7 +1,7 @@
 from load_data import Spider
 
 spider = Spider("data/spider")
-examples = spider.test[:100]
+examples = spider.test
 
 # Fine-tuned T5-small
 import infer
