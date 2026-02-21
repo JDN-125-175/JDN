@@ -39,7 +39,11 @@ def predict(question, db_id):
             early_stopping=True,
         )
 
-    return tokenizer.decode(out_ids[0], skip_special_tokens=True)
+    result = tokenizer.decode(out_ids[0], skip_special_tokens=True)
+    # Model outputs "db_id | sql", strip the prefix
+    if " | " in result:
+        result = result.split(" | ", 1)[1].strip()
+    return result
 
 
 if __name__ == "__main__":
