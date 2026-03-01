@@ -27,57 +27,47 @@ class Spider:
         return databases
 
 
-# -------------------------------
-# Improved Schema Serialization
-# -------------------------------
-
 def process_tables(database):
-    """
-    Serialize schema in a structured format:
-    table_name(col1, col2, col3)
-    + Foreign key info
-    Everything lowercased for consistency.
-    """
 
     tables = database["table_names_original"]
     columns = database["column_names_original"]
     foreign_keys = database["foreign_keys"]
 
-    
+    # map table_id -> list of columns
     table_columns = {i: [] for i in range(len(tables))}
 
     for table_id, col_name in columns:
         if table_id >= 0:
             table_columns[table_id].append(col_name.lower())
 
-    
-    table_strings = []
-    for i, table in enumerate(tables):
-        table_name = table.lower()
-        cols = ", ".join(table_columns[i])
-        table_strings.append(f"{table_name}({cols})")
+    schema_parts = []
+    schema_parts.append("Database Schema:\n")
 
-    # Foreign key relationships
-    fk_strings = []
-    for fk in foreign_keys:
-        col1_idx, col2_idx = fk
+    for table_id, table_name in enumerate(tables):
+        table_name = table_name.lower()
+        schema_parts.append(f"Table: {table_name}")
 
-        t1_id, c1_name = columns[col1_idx]
-        t2_id, c2_name = columns[col2_idx]
+        for col in table_columns[table_id]:
+            schema_parts.append(f"  - {col}")
 
-        table1 = tables[t1_id].lower()
-        table2 = tables[t2_id].lower()
+        schema_parts.append("")
 
-        fk_strings.append(
-            f"{table1}.{c1_name.lower()} -> {table2}.{c2_name.lower()}"
-        )
+    # deal with foreign keys
+    if foreign_keys:
+        schema_parts.append("Foreign Keys:")
 
-    schema = "tables:\n" + "\n".join(table_strings)
+        for col1_idx, col2_idx in foreign_keys:
+            t1_id, c1_name = columns[col1_idx]
+            t2_id, c2_name = columns[col2_idx]
 
-    if fk_strings:
-        schema += "\nforeign_keys:\n" + "\n".join(fk_strings)
+            table1 = tables[t1_id].lower()
+            table2 = tables[t2_id].lower()
 
-    return schema
+            schema_parts.append(
+                f"  - {table1}.{c1_name.lower()} = {table2}.{c2_name.lower()}"
+            )
+
+    return "\n".join(schema_parts)
 
 
 
