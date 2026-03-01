@@ -3,3 +3,4 @@ t5_spider_ckpt/
 __pycache__/
 data.zip
 data/
+preds_*.txt
