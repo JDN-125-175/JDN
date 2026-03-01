@@ -1,6 +1,6 @@
 import torch
 from transformers import T5Tokenizer, T5ForConditionalGeneration
-from load_data import Spider, process_tables
+from load_data import Spider, process_tables, build_prompt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -15,15 +15,9 @@ def predict(question, db_id):
 
     schema = process_tables(tables[db_id])
 
-    prompt = (
-        "Task: Text-to-SQL. "
-        f"Question: {question} "
-        f"Database Schema: {schema} "
-        "SQL Query:"
-    )
+    prompt = build_prompt(question.lower(), schema)
 
-
-    enc = tokenizer(prompt, return_tensors="pt", truncation=True).to(device)
+    enc = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512).to(device)
 
     with torch.no_grad():
         out_ids = model.generate(

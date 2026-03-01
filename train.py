@@ -4,7 +4,7 @@ from transformers import T5Tokenizer, T5ForConditionalGeneration
 from load_data import Spider, process_query
 
 class SpiderDataset(Dataset):
-    def __init__(self, inputs, targets, tokenizer, max_input_len=256, max_target_len=256):
+    def __init__(self, inputs, targets, tokenizer, max_input_len=512, max_target_len=256):
         self.inputs = inputs
         self.targets = targets
         self.tokenizer = tokenizer
