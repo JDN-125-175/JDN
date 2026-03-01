@@ -49,9 +49,9 @@ def main():
     ds = SpiderDataset(train_inputs, train_targets, tokenizer)
     loader = DataLoader(ds, batch_size=4, shuffle=True)
 
-    optim = torch.optim.AdamW(model.parameters(), lr=5e-5)  # I'd lower from 3e-4
+    optim = torch.optim.AdamW(model.parameters(), lr=3e-5)  # I'd lower from 3e-4
 
-    num_epochs = 7
+    num_epochs = 10
 
     model.train()
     global_step = 0
