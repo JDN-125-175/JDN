@@ -28,8 +28,10 @@ def predict(question, db_id):
     with torch.no_grad():
         out_ids = model.generate(
             **enc,
-            max_length=256,
-            num_beams=4,
+            max_new_tokens=128,        
+            num_beams=8,               
+            length_penalty=0.8,        
+            no_repeat_ngram_size=3,    
             early_stopping=True,
         )
 

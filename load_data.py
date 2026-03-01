@@ -43,14 +43,14 @@ def process_tables(database):
     columns = database["column_names_original"]
     foreign_keys = database["foreign_keys"]
 
-    # Map table_id -> column names
+    
     table_columns = {i: [] for i in range(len(tables))}
 
     for table_id, col_name in columns:
         if table_id >= 0:
             table_columns[table_id].append(col_name.lower())
 
-    # Build table strings
+    
     table_strings = []
     for i, table in enumerate(tables):
         table_name = table.lower()
@@ -80,9 +80,6 @@ def process_tables(database):
     return schema
 
 
-# -------------------------------
-# Prompt Construction
-# -------------------------------
 
 def build_prompt(question, schema):
     """
@@ -99,9 +96,6 @@ def build_prompt(question, schema):
     )
 
 
-# -------------------------------
-# Dataset Preparation
-# -------------------------------
 
 def process_query(data, database):
     """
