@@ -4,11 +4,11 @@ spider = Spider("data/spider")
 examples = spider.test
 
 # Fine-tuned T5-small
-import infer
+import infer_picard
 with open("preds_finetuned.txt", "w") as f:
     for i, ex in enumerate(examples):
         if i % 10 == 0: print(f"Fine-tuned: {i}/{len(examples)}")
-        f.write(infer.predict(ex["question"], ex["db_id"]) + "\n")
+        f.write(infer_picard.predict(ex["question"], ex["db_id"]) + "\n")
 
 print("Fine-tuned predictions saved to preds_finetuned.txt")
 
