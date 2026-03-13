@@ -1,10 +1,9 @@
-import torch
-from transformers import T5ForConditionalGeneration, T5Tokenizer, LogitsProcessor
-from load_data import Spider, process_tables, build_prompt
 import re
+import torch
+from transformers import T5Tokenizer, T5ForConditionalGeneration, LogitsProcessor, LogitsProcessorList
+from load_data import Spider, build_prompt, process_tables
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 tokenizer = T5Tokenizer.from_pretrained("t5_spider_ckpt")
 model = T5ForConditionalGeneration.from_pretrained("t5_spider_ckpt").to(device)
 model.eval()
@@ -12,138 +11,138 @@ model.eval()
 spider = Spider("data/spider")
 tables = spider.load_tables(spider.tables_path)
 
+SKIP_IDS = {tokenizer.pad_token_id, tokenizer.eos_token_id, model.config.decoder_start_token_id} - {None}
+
+SQL_KEYWORDS = {
+    "select", "from", "where", "group", "by", "order", "having", "limit",
+    "join", "left", "right", "inner", "outer", "on", "as", "distinct", "and",
+    "or", "not", "in", "between", "like", "is", "null", "count", "sum", "avg",
+    "min", "max", "asc", "desc", "all", "exists", "union", "intersect", "except",
+    "case", "when", "then", "else", "end", "cast",
+}
+
+ALIAS_RE = re.compile(r"^(t\d+|[a-z])$")
+SINGLE_CLAUSES = ["select", "from", "where", "group by", "having", "order by", "limit"]
+
+
+def get_schema(db_id):
+    db = tables[db_id]
+    table_names = {t.lower() for t in db["table_names_original"]}
+    col_names   = {col.lower() for tbl_idx, col in db["column_names_original"] if tbl_idx >= 0}
+    col_names.add("*")
+    return table_names, col_names
+
+
+def token_is_word_start(token_str):
+    """
+    In SentencePiece, a token starting with '▁' begins a new word.
+    A token without '▁' is a continuation of the previous word.
+    We only run schema/clause checks on word-starting tokens.
+    """
+    return token_str.startswith("▁") or token_str in ("(", ")", ",", ";", "=", "<", ">")
+
+
+def is_valid_sql_prefix(sql, table_names, col_names):
+    """
+    Only called on complete-word boundaries — so 'des' never appears,
+    only 'desc' does (the full word token).
+    """
+    if not sql:
+        return True
+    if not sql.startswith("select"):
+        return False
+
+    all_ids = table_names | col_names
+
+    # clause ordering
+    outer, depth = [], 0
+    for ch in sql:
+        if ch == "(": depth += 1
+        elif ch == ")": depth = max(0, depth - 1)
+        outer.append(" " if depth > 0 else ch)
+    outer_sql = "".join(outer)
+
+    last_pos = -1
+    for clause in SINGLE_CLAUSES:
+        positions = [m.start() for m in re.finditer(rf"\b{re.escape(clause)}\b", outer_sql)]
+        if len(positions) > 1:
+            return False
+        if positions and positions[0] < last_pos:
+            return False
+        if positions:
+            last_pos = positions[0]
+
+    # FROM/JOIN table check
+    in_str = False
+    quote_char = None
+    for match in re.finditer(r"\b(?:from|join)\s+([\w.]+)", sql, re.IGNORECASE):
+        pos = match.start()
+        # recompute string context up to this position
+        in_str, quote_char = False, None
+        for ch in sql[:pos]:
+            if not in_str and ch in ('"', "'"):
+                in_str, quote_char = True, ch
+            elif in_str and ch == quote_char:
+                in_str = False
+        if in_str:
+            continue
+        word = match.group(1).lower().split(".")[0]
+        if ALIAS_RE.match(word) or word in SQL_KEYWORDS:
+            continue
+        if word not in table_names:
+            return False
+
+    return True
 
 
 class PicardLogitsProcessor(LogitsProcessor):
-
-    def __init__(self, schema_text: str):
-        self.schema_text = schema_text.lower()
-
-        # SQL keywords
-        self.keywords = [
-            "select", "from", "where", "and", "or",
-            "group", "by", "order", "limit",
-            "as", "count", "sum", "avg", "min", "max",
-            "*", "desc", "asc",
-            "having", "join", "on",
-            "union", "intersect", "except"
-        ]
-
-        self.allowed_tokens = self.get_allowed_tokens(schema_text)
-        self.table_columns = self.extract_columns(schema_text)
-
-
-    def get_allowed_tokens(self, schema_text: str):
-
-        tokens = set()
-
-        # schema tokens
-        for piece in schema_text.replace("_", " ").replace(".", " ").split():
-            ids = tokenizer(piece, add_special_tokens=False).input_ids
-            tokens.update(ids)
-
-        # SQL keyword tokens
-        for kw in self.keywords:
-            ids = tokenizer(kw, add_special_tokens=False).input_ids
-            tokens.update(ids)
-
-        # special tokens
-        tokens.update([
-            tokenizer.pad_token_id,
-            tokenizer.eos_token_id,
-            tokenizer.unk_token_id
-        ])
-
-        return tokens
-
-    def extract_columns(self, schema_text: str):
-
-        cols = set()
-
-        for line in schema_text.splitlines():
-            if line.strip().startswith("-"):
-                col = line.strip()[2:]
-                cols.add(col)
-
-        return cols
-
-    def prune_tokens(self, decoded_str: str):
-
-        valid_tokens = set(self.allowed_tokens)
-
-        # enforce table after FROM
-        if re.search(r"\bfrom\s+$", decoded_str):
-
-            table_names = {
-                t.split()[1].lower()
-                for t in re.findall(r"table:\s*(\S+)", self.schema_text)
-            }
-
-            table_tokens = set()
-
-            for t in table_names:
-                table_tokens.update(
-                    tokenizer(t, add_special_tokens=False).input_ids
-                )
-
-            valid_tokens = table_tokens | {tokenizer.eos_token_id}
-
-        # enforce columns after JOIN
-        if re.search(r"\bjoin\s+", decoded_str):
-
-            col_tokens = set()
-
-            for col in self.table_columns:
-                for piece in col.split("."):
-                    col_tokens.update(
-                        tokenizer(piece, add_special_tokens=False).input_ids
-                    )
-
-            valid_tokens = col_tokens | {tokenizer.eos_token_id}
-
-        return valid_tokens
-
+    def __init__(self, table_names, col_names):
+        self.table_names = table_names
+        self.col_names   = col_names
 
     def __call__(self, input_ids, scores):
+        for b in range(input_ids.shape[0]):
+            ids = [t for t in input_ids[b].tolist() if t not in SKIP_IDS]
+            if not ids:
+                continue
 
-        # decode only last tokens instead of full sequence
-        last_tokens = input_ids[:, -5:]
-        decoded = tokenizer.batch_decode(
-            last_tokens, skip_special_tokens=True
-        )[0].lower()
+            # only validate at word boundaries
+            last_token = tokenizer.convert_ids_to_tokens(ids[-1])
+            if last_token and not token_is_word_start(last_token):
+                continue  # mid-word token: don't check yet, let the word finish
 
-        valid_tokens = self.prune_tokens(decoded)
+            sql = "".join(
+                tokenizer.convert_ids_to_tokens(i) or "" for i in ids
+            ).replace("▁", " ").strip()
 
-        mask = torch.full_like(scores, float("-inf"))
-        mask[:, list(valid_tokens)] = 0
+            if not is_valid_sql_prefix(sql, self.table_names, self.col_names):
+                scores[b, :] = -float("inf")
+                scores[b, tokenizer.eos_token_id] = 0.0
 
-        return scores + mask
+        return scores
 
 
-
-def predict(question, db_id, max_len=256, num_beams=4):
-
+def predict(question, db_id):
     schema = process_tables(tables[db_id])
     prompt = build_prompt(question.lower(), schema)
+    enc = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512).to(device)
 
-    processor = PicardLogitsProcessor(schema)
-
-    inputs = tokenizer(
-        prompt,
-        return_tensors="pt",
-        truncation=True,
-        max_length=512
-    ).to(device)
+    table_names, col_names = get_schema(db_id)
 
     with torch.no_grad():
-
         out_ids = model.generate(
-            **inputs,
-            max_length=max_len,
-            num_beams=num_beams,
+            **enc,
+            max_new_tokens=256,
+            num_beams=4,
             early_stopping=True,
-            logits_processor=[processor],
+            logits_processor=LogitsProcessorList([
+                PicardLogitsProcessor(table_names, col_names)
+            ]),
         )
 
-    return tokenizer.decode(out_ids[0], skip_special_tokens=True)
+    return tokenizer.decode(out_ids[0], skip_special_tokens=True).strip()
 
+
+if __name__ == "__main__":
+    print(predict("How many singers are there?", "concert_singer"))
+    print(predict("What are the names of all stadiums?", "concert_singer"))
