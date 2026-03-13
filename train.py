@@ -47,11 +47,11 @@ def main():
     model = T5ForConditionalGeneration.from_pretrained("t5-small").to(device)
 
     ds = SpiderDataset(train_inputs, train_targets, tokenizer)
-    loader = DataLoader(ds, batch_size=8, shuffle=True)
+    loader = DataLoader(ds, batch_size=4, shuffle=True)
 
-    optim = torch.optim.AdamW(model.parameters(), lr=2e-5)  # I'd lower from 3e-4
+    optim = torch.optim.AdamW(model.parameters(), lr=3e-5)  # I'd lower from 3e-4
 
-    num_epochs = 5
+    num_epochs = 7
 
     model.train()
     global_step = 0
