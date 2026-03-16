@@ -34,19 +34,10 @@ def get_schema(db_id):
 
 
 def token_is_word_start(token_str):
-    """
-    In SentencePiece, a token starting with '▁' begins a new word.
-    A token without '▁' is a continuation of the previous word.
-    We only run schema/clause checks on word-starting tokens.
-    """
     return token_str.startswith("▁") or token_str in ("(", ")", ",", ";", "=", "<", ">")
 
 
 def is_valid_sql_prefix(sql, table_names, col_names):
-    """
-    Only called on complete-word boundaries — so 'des' never appears,
-    only 'desc' does (the full word token).
-    """
     if not sql:
         return True
     if not sql.startswith("select"):
@@ -141,8 +132,3 @@ def predict(question, db_id):
         )
 
     return tokenizer.decode(out_ids[0], skip_special_tokens=True).strip()
-
-
-if __name__ == "__main__":
-    print(predict("How many singers are there?", "concert_singer"))
-    print(predict("What are the names of all stadiums?", "concert_singer"))
